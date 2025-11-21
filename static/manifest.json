@@ -1,0 +1,14 @@
+{
+    "short_name": "Burman",
+    "name": "Sean Burman",
+    "favicon": "/favicon.ico",
+    "icons": [
+      {
+        "src": "icon.png",
+        "sizes": "178x180",
+        "type": "image/png"
+      }
+    ],
+    "start_url": "index.html",
+    "display": "standalone"
+  }

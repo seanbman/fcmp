@@ -1,5 +1,7 @@
 .PHONY: templ example
 
+VERSION = 0.4
+
 make:
 	go run .
 
@@ -17,7 +19,7 @@ assets: templ
 	sass static/assets/sass:static/assets/stylesheets
 
 bundle:
-	./esbuild static/assets/index.ts --bundle --minify --outfile=static/assets/fncmp.min.js
+	./esbuild static/assets/index.ts --bundle --minify --outfile=static/assets/fcmp.min.js
 
 templ:
 	/Users/seanburman/go/bin/templ generate
@@ -32,7 +34,7 @@ sass:
 	sass --watch static/assets/sass:static/assets/stylesheets
 
 publish:
-	git tag -s v0.3.305 -m "fncmp v0.3.305" && \
+	git tag -s v0.3.305 -m "fcmp v$(VERSION)" && \
 	git push --tags && \
-	GOPROXY=proxy.golang.org go list -m github.com/snburman/fncmp@v0.3.305 && \
-	curl https://sum.golang.org/lookup/github.com/snburman/fncmp@v0.3.305
+	GOPROXY=proxy.golang.org go list -m github.com/seanbman/fcmp@v$(VERSION) && \
+	curl https://sum.golang.org/lookup/github.com/seanbman/fcmp@v$(VERSION)

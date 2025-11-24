@@ -1,5 +1,5 @@
-// Package fncmp brings enhanced functionality to the Component interface.
-package fncmp
+// Package fcmp brings enhanced functionality to the Component interface.
+package fcmp
 
 import (
 	"math"
@@ -15,7 +15,7 @@ var logOpts = log.Options{
 	ReportCaller:    true,
 	ReportTimestamp: true,
 	TimeFormat:      time.Kitchen,
-	Prefix:          "package fncmp:",
+	Prefix:          "package fcmp:",
 }
 
 type LogLevel log.Level
@@ -60,7 +60,7 @@ func (c *Config) Set() {
 		return
 	}
 	c.Logger.Info(
-		"fncmp config set",
+		"fcmp config set",
 		"cache_timeout", c.CacheTimeOut,
 		"log_level", c.LogLevel,
 	)

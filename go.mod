@@ -1,4 +1,4 @@
-module github.com/snburman/fncmp
+module github.com/snburman/fcmp
 
 go 1.21.5
 

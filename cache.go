@@ -1,4 +1,4 @@
-package fncmp
+package fcmp
 
 import (
 	"context"
@@ -173,7 +173,7 @@ func NewCache[T any](ctx context.Context, key string, initial T) (c Cache[T], er
 
 // UseCache takes a generic type, context, and a key and returns a Cache of the type
 //
-// https://pkg.go.dev/github.com/snburman/fncmp#UseCache
+// https://pkg.go.dev/github.com/snburman/fcmp#UseCache
 func UseCache[T any](ctx context.Context, key string) (c Cache[T], err error) {
 	empty := Cache[T]{}
 	dispatch, ok := dispatchFromContext(ctx)

@@ -1,5 +1,5 @@
 import { API } from "./api";
-import { Dispatch } from "./fncmp_types";
+import { Dispatch } from "./fcmp_types";
 var did_connect = false;
 let api: API;
 
@@ -29,7 +29,7 @@ export class Socket {
             path_parsed = "/";
         }
 
-        let key = localStorage.getItem("fncmp");
+        let key = localStorage.getItem("fcmp");
         if (!key) {
             key = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
                 /[xy]/g,
@@ -39,7 +39,7 @@ export class Socket {
                     return v.toString(16);
                 }
             );
-            localStorage.setItem("fncmp", key);
+            localStorage.setItem("fcmp", key);
         }
 
         let protocol = "wss"
@@ -47,14 +47,14 @@ export class Socket {
             protocol = "ws"
         }
 
-        this.addr = protocol + "://" + window.location.host + path_parsed + "?fncmp_id=" + this.key;
+        this.addr = protocol + "://" + window.location.host + path_parsed + "?fcmp_id=" + this.key;
     }
 
     private connect() {
         try {
             this.ws = new WebSocket(this.addr);
         } catch (err) {
-            throw new Error("ws: failed to connect to fncmp server: " + err);
+            throw new Error("ws: failed to connect to fcmp server: " + err);
         }
         try {
             api = new API(this.ws);

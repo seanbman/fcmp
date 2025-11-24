@@ -1,5 +1,5 @@
 {
-  "name": "fncmp",
+  "name": "fcmp",
   "version": "0.3.3",
   "main": "index.js",
   "scripts": {

@@ -1,4 +1,4 @@
-package fncmp
+package fcmp
 
 import (
 	"context"
@@ -34,7 +34,7 @@ type FnComponent struct {
 
 // NewFn creates a new FnComponent from a Component
 func NewFn(ctx context.Context, c Component) FnComponent {
-	id := "fncmp-" + uuid.New().String()
+	id := "fcmp-" + uuid.New().String()
 
 	dispatch := newDispatch(id)
 	dd, ok := ctx.Value(dispatchKey).(dispatchDetails)

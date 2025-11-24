@@ -1,4 +1,4 @@
-package fncmp
+package fcmp
 
 import (
 	"context"
@@ -217,7 +217,7 @@ func MiddleWareFn(h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
 	handler.listen()
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("fncmp_id")
+		id := r.URL.Query().Get("fcmp_id")
 		if id == "" {
 			writer := Writer{ResponseWriter: w}
 			h(&writer, r)

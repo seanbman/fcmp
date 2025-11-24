@@ -1,4 +1,4 @@
-package fncmp
+package fcmp
 
 import "context"
 

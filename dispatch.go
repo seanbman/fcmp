@@ -1,4 +1,4 @@
-package fncmp
+package fcmp
 
 import "encoding/json"
 
@@ -52,7 +52,7 @@ type (
 	}
 	// FnError is used internally to log an error on the server if config is set to log errors
 	//
-	// See: https://pkg.go.dev/github.com/kitkitchen/fncmp#SetConfig
+	// See: https://pkg.go.dev/github.com/kitkitchen/fcmp#SetConfig
 	FnError struct {
 		Message string `json:"message"`
 	}
@@ -68,7 +68,7 @@ func newDispatch(key string) *Dispatch {
 //
 // While this struct is exported, it is not intended to be used directly and is not exposed during runtime.
 //
-// See: https://kitkitchen.github.io/docs/fncmp/tutorial/context to read about how Dispatch is used.
+// See: https://kitkitchen.github.io/docs/fcmp/tutorial/context to read about how Dispatch is used.
 type Dispatch struct {
 	buf        []byte        `json:"-"`
 	conn       *conn         `json:"-"`

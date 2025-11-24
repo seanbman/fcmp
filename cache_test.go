@@ -1,4 +1,4 @@
-package fncmp
+package fcmp
 
 import (
 	"context"
@@ -17,7 +17,7 @@ func init() {
 		ReportCaller:    true,
 		ReportTimestamp: true,
 		TimeFormat:      time.Kitchen,
-		Prefix:          "TESTING fncmp:",
+		Prefix:          "TESTING fcmp:",
 	}
 	logOpts = opts
 	config = &Config{

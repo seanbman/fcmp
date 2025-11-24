@@ -1,4 +1,4 @@
-import { Dispatch, DispatchFunctions, FnEventListener, Fun } from "./fncmp_types";
+import { Dispatch, DispatchFunctions, FnEventListener, Fun } from "./fcmp_types";
 
 export class API {
     private ws: WebSocket | null = null;

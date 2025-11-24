@@ -9,7 +9,7 @@ import {
     beforeEach,
 } from "@jest/globals";
 import { JSDOM } from "jsdom";
-import { Dispatch, Fun } from "../fncmp_types";
+import { Dispatch, Fun } from "../fcmp_types";
 
 describe("test websocket functions", () => {
     let dispatches: Dispatch[] = [];

@@ -33,7 +33,7 @@ jobs:
       - name: Commit published Grapher state
         shell: bash
         run: |
-          if git diff --quiet -- .grapher/shared; then
+          if [ -z "$(git status --porcelain -- .grapher/shared)" ]; then
             echo "Published Grapher state is already current."
             exit 0
           fi

@@ -55,20 +55,32 @@ type Config struct {
 	UploadMaxMemory int64  // Maximum multipart memory before files spill to disk
 }
 
+// SetConfig updates the legacy package-global configuration. New applications
+// should prefer New with ApplicationOption values so configuration stays owned
+// by the Application instance.
 func SetConfig(c *Config) {
+	if c == nil {
+		c = defaultConfig()
+	}
+	c.setLocal()
 	config = c
-	config.Set()
 	if defaultRuntime != nil {
 		defaultRuntime.config = config
 	}
 }
 
+// Set updates the legacy package-global configuration. It is retained for
+// compatibility; Application construction does not call it.
 func (c *Config) Set() {
+	SetConfig(c)
+}
+
+// setLocal normalizes configuration without mutating package-global state.
+func (c *Config) setLocal() {
 	if c.Logger == nil {
 		c.Logger = log.NewWithOptions(os.Stderr, logOpts)
 	}
 
-	config = c
 	if c.Silent || c.LogLevel == None {
 		c.Logger.SetLevel(log.Level(None))
 		return
@@ -78,6 +90,5 @@ func (c *Config) Set() {
 		"cache_timeout", c.CacheTimeOut,
 		"log_level", c.LogLevel,
 	)
-
-	config.Logger.SetLevel(log.Level(c.LogLevel))
+	c.Logger.SetLevel(log.Level(c.LogLevel))
 }

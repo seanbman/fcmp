@@ -37,6 +37,22 @@ func WithLogger(logger *log.Logger) ApplicationOption {
 	}
 }
 
+// WithWebSocketMaxMessageBytes limits one inbound WebSocket message. A value
+// <= 0 is normalized to Neith's secure default during application creation.
+func WithWebSocketMaxMessageBytes(limit int64) ApplicationOption {
+	return func(c *Config) {
+		c.WebSocketMaxMessageBytes = limit
+	}
+}
+
+// WithWebSocketOriginPolicy overrides the default same-origin WebSocket policy.
+// Applications should only relax the default deliberately for trusted origins.
+func WithWebSocketOriginPolicy(policy func(*http.Request) bool) ApplicationOption {
+	return func(c *Config) {
+		c.CheckOrigin = policy
+	}
+}
+
 // New creates an isolated Neith Application.
 func New(opts ...ApplicationOption) *Application {
 	cfg := *defaultConfig()

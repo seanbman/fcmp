@@ -136,6 +136,14 @@ func (c *conn) readLoop() {
 			c.runtime().Config().Logger.Error("error decoding websocket dispatch", "error", err)
 			continue
 		}
+		if !dispatch.validVersion() {
+			c.runtime().Config().Logger.Error("unsupported websocket protocol version", "version", dispatch.Version, "expected", ProtocolVersion)
+			continue
+		}
+		if !dispatch.validInboundFunction() {
+			c.runtime().Config().Logger.Error("unsupported inbound websocket operation", "function", dispatch.Function)
+			continue
+		}
 
 		handler, ok := c.runtime().handlers.Get(dispatch.HandlerID)
 		if !ok {

@@ -8,6 +8,7 @@ import (
 
 func TestDispatchJSONShape(t *testing.T) {
 	dispatch := Dispatch{
+		Version:  ProtocolVersion,
 		ID:       "dispatch-1",
 		Key:      "key-1",
 		ConnID:   "conn-1",
@@ -25,6 +26,7 @@ func TestDispatchJSONShape(t *testing.T) {
 	}
 	body := string(b)
 	for _, want := range []string{
+		`"v":1`,
 		`"function":"render"`,
 		`"conn_id":"conn-1"`,
 		`"target_id":"content"`,
@@ -36,6 +38,29 @@ func TestDispatchJSONShape(t *testing.T) {
 	}
 	if strings.Contains(body, `"buf"`) || strings.Contains(body, `"conn"`) {
 		t.Fatalf("dispatch JSON leaked internal fields: %s", body)
+	}
+}
+
+func TestNewDispatchUsesCurrentProtocolVersion(t *testing.T) {
+	d := newDispatch("client")
+	if d.Version != ProtocolVersion {
+		t.Fatalf("expected protocol version %d, got %d", ProtocolVersion, d.Version)
+	}
+	if !d.validVersion() {
+		t.Fatal("new dispatch should satisfy current protocol version")
+	}
+}
+
+func TestInboundFunctionAllowlist(t *testing.T) {
+	for _, fn := range []functionName{ping, event, custom, fnError} {
+		if !(Dispatch{Version: ProtocolVersion, Function: fn}).validInboundFunction() {
+			t.Fatalf("expected %q to be accepted inbound", fn)
+		}
+	}
+	for _, fn := range []functionName{render, class, dom, redirect, "unknown"} {
+		if (Dispatch{Version: ProtocolVersion, Function: fn}).validInboundFunction() {
+			t.Fatalf("expected %q to be rejected inbound", fn)
+		}
 	}
 }
 

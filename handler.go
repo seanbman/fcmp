@@ -263,16 +263,10 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// MiddleWareFn is the legacy per-mount entry point. Each call retains its
-// historical isolated runtime. New multi-route applications should use New and
-// Application.Route.
 func MiddleWareFn(h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
 	return middleWareFnWithRuntime(newRuntime(config), h, hf)
 }
 
-// middleWareFnWithRuntime mounts a handler into an existing runtime. It is the
-// bridge used by Application so multiple routes can share one deliberate
-// runtime boundary without changing legacy MiddleWareFn semantics.
 func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
 	if rt == nil {
 		rt = newRuntime(config)
@@ -287,6 +281,10 @@ func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.
 		}
 
 		if r.URL.Query().Get("neith_upload") == "1" {
+			if policy := rt.Config().AuthorizeInteractive; policy != nil && !policy(r) {
+				http.Error(w, "neith: interactive request forbidden", http.StatusForbidden)
+				return
+			}
 			clientID, err := rt.sessionID(r)
 			if err != nil {
 				http.Error(w, "neith: session required", http.StatusUnauthorized)
@@ -310,6 +308,10 @@ func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.
 			return
 		}
 
+		if policy := rt.Config().AuthorizeInteractive; policy != nil && !policy(r) {
+			http.Error(w, "neith: interactive request forbidden", http.StatusForbidden)
+			return
+		}
 		clientID, err := rt.sessionID(r)
 		if err != nil {
 			http.Error(w, "neith: session required", http.StatusUnauthorized)

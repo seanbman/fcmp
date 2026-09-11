@@ -66,6 +66,11 @@ type Config struct {
 	// Nil is the secure default and leaves Gorilla's host/origin validation active.
 	CheckOrigin func(*http.Request) bool
 
+	// AuthorizeInteractive is called before WebSocket upgrades and upload
+	// requests. Nil delegates authorization entirely to surrounding net/http
+	// middleware. Returning false rejects the interactive request with 403.
+	AuthorizeInteractive func(*http.Request) bool
+
 	// SessionCookieName and SessionCookiePath configure Neith's server-issued
 	// opaque session cookie. The cookie is always HttpOnly and SameSite=Lax.
 	SessionCookieName string

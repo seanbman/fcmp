@@ -34,113 +34,121 @@ base.SUMMARIES.update({
         "shutdown cancels runtime work, closes tracked sockets, rejects new requests, and is idempotent."
     ),
     "docs/adr/0003-protocol-security-boundary.md": (
-        "Accepted security/architecture decision defining the browser as a finite versioned protocol "
-        "interpreter and explicitly rejecting arbitrary server-supplied JavaScript execution. Phase 2 "
-        "begins implementing this boundary with protocol version 1 and strict operation validation."
+        "Accepted protocol/security decision defining the browser as a finite versioned interpreter, "
+        "rejecting arbitrary remote JavaScript, establishing protocol v1 validation, safe same-origin "
+        "WebSocket defaults, bounded inbound messages, and server-issued opaque HttpOnly sessions shared "
+        "by page, WebSocket, and upload traffic."
     ),
     "application.go": (
-        "First-class Application API for framework plan 0926-1. Application owns an isolated runtime "
-        "and standard-library ServeMux, implements http.Handler, registers multiple interactive routes "
-        "against one shared runtime, serves embedded assets, accepts local configuration without "
-        "package globals, and exposes Done, Shutdown, and Close lifecycle methods."
+        "Canonical Application API. It owns an isolated runtime and ServeMux, shares one runtime across "
+        "registered routes, implements http.Handler, exposes shutdown lifecycle, and offers application-"
+        "local transport policy options including WebSocket message limits and explicit origin policy."
     ),
     "application_test.go": (
-        "Phase 1 contract tests for Application: registered HTTP route/page serving, multiple routes "
-        "sharing one application runtime, isolation between separate applications, application-local "
-        "configuration, idempotent shutdown, post-shutdown request rejection, and closure/detachment "
-        "of tracked active connections."
+        "Application contract tests covering route serving, shared runtime within one application, "
+        "isolation between applications, local configuration, idempotent shutdown, post-shutdown rejection, "
+        "and closure/detachment of runtime-tracked connections."
     ),
     "runtime.go": (
-        "Internal Application runtime ownership boundary. In addition to handlers, sessions, listeners, "
-        "state stores and configuration, runtime owns a cancellation context, closed state, tracked "
-        "connection wait group, and idempotent graceful shutdown that closes active session sockets."
+        "Internal Application runtime ownership boundary. It owns handlers, sessions, listeners, state "
+        "stores, configuration, cancellation context, closed state, tracked connection lifetime, and "
+        "idempotent graceful shutdown."
     ),
     "handler.go": (
-        "Runtime handler pool and bidirectional dispatch pipeline. Legacy MiddleWareFn preserves a "
-        "fresh isolated runtime per mount; middleWareFnWithRuntime lets Application routes share one "
-        "runtime. Handler input/output loops, ping loops, initial dispatch, and event responses observe "
-        "runtime cancellation so application shutdown terminates runtime-owned pipelines."
+        "Runtime HTTP/WebSocket/upload bridge and bidirectional dispatch pipeline. Normal page requests "
+        "establish/reuse a server-issued session cookie, WebSocket upgrades and uploads require that cookie, "
+        "Application routes can share one runtime, legacy middleware remains isolated, and runtime cancellation "
+        "terminates handler/ping pipelines."
     ),
     "conn.go": (
-        "WebSocket transport tied to Application runtime lifetime and Phase 2 protocol validation. "
-        "Connections are runtime-tracked and close on shutdown. Inbound frames are JSON-decoded then "
-        "rejected unless they use the current ProtocolVersion and an explicitly allowed browser-to-server "
-        "operation before they can reach a handler."
+        "Runtime-owned WebSocket transport. Gorilla's same-origin policy is the default unless explicitly "
+        "overridden, inbound frame size is bounded by application configuration, messages are rejected unless "
+        "they carry the current protocol version and an allowed browser-to-server operation, and connection "
+        "reads/writes stop with Application shutdown."
     ),
     "session.go": (
-        "Client-session registry preserving one active socket per browser client while allowing session "
-        "state to outlive a connection. It exposes an internal snapshot of active connections so "
-        "Application shutdown can close every transport owned by the runtime safely."
+        "Client-session registry preserving one active socket per opaque session while allowing state to "
+        "survive connection replacement. It also enumerates active connections for Application shutdown."
+    ),
+    "session_http.go": (
+        "Server-side HTTP session boundary. It generates cryptographically random 32-byte URL-safe opaque "
+        "session identifiers, reads them only from the configured cookie, and issues HttpOnly SameSite=Lax "
+        "cookies that become Secure automatically on direct HTTPS or when forced behind trusted TLS termination."
+    ),
+    "session_http_test.go": (
+        "Security contract tests for server-issued sessions: random opaque cookie issuance, HttpOnly and "
+        "SameSite=Lax policy, reuse of existing sessions, Secure behavior for HTTPS/proxy configuration, "
+        "and automatic session establishment on a normal Application page response."
     ),
     "errors.go": (
-        "Stable package error values for application lifecycle, dispatch/event context, connection "
-        "failures, and cache/store failures. ErrApplicationClosed identifies work rejected after an "
-        "Application runtime has begun shutdown."
+        "Stable application lifecycle, dispatch/event, connection, and cache errors. ErrApplicationClosed "
+        "identifies work rejected after Application shutdown begins."
     ),
     "dispatch.go": (
-        "Go wire-contract definition for Neith. ProtocolVersion=1 is now explicit on every newly created "
-        "Dispatch through the JSON v field. Dispatch validates the current version and a finite inbound "
-        "operation allowlist before browser messages may reach server handlers; the flat payload remains "
-        "a transitional v1 compatibility shape ahead of the stricter envelope refactor."
+        "Go wire-contract definition. ProtocolVersion=1 is explicit in every new Dispatch via JSON field v; "
+        "the server validates version and a finite inbound operation allowlist before browser frames may reach "
+        "handlers. The flat payload is transitional v1 compatibility surface."
     ),
     "dispatch_test.go": (
-        "Go protocol contract tests locking the JSON v field, automatic ProtocolVersion initialization, "
-        "and the browser-to-server operation allowlist in addition to render/listener serialization."
-    ),
-    "static/assets/neith_types.ts": (
-        "Browser TypeScript wire contract. It exports PROTOCOL_VERSION=1 and requires every Dispatch to "
-        "carry v alongside the current finite operation payloads, keeping the browser contract aligned "
-        "with Go dispatch.go during the Phase 2 protocol migration."
-    ),
-    "static/assets/api.ts": (
-        "Browser protocol dispatcher. Before any redirect, render, class, DOM, custom or ping behavior, "
-        "API validates the Dispatch v field against PROTOCOL_VERSION and rejects missing/unsupported "
-        "versions without execution. Outbound replies are likewise required to preserve the current version."
-    ),
-    "static/assets/tests/setup.ts": (
-        "Jest integration-test setup that upgrades legacy mock-server fixture objects with the current "
-        "PROTOCOL_VERSION at the test transport boundary. Production runtime validation remains strict; "
-        "the shim exists only so older behavior-focused fixtures exercise the new v1 contract."
-    ),
-    "static/assets/tests/protocol.test.ts": (
-        "Focused browser protocol contract tests proving unsupported and missing versions execute no "
-        "operation and send no response while emitting an error hook, and proving valid v1 ping replies "
-        "preserve the negotiated version."
-    ),
-    "static/assets/jest.config.js": (
-        "Jest/ts-jest/jsdom browser-runtime test configuration. It now loads the protocol fixture setup "
-        "before integration tests so all server mock frames cross the explicit v1 boundary."
-    ),
-    "static/assets/package.json": (
-        "Browser development package metadata defining deterministic Jest verification and an esbuild "
-        "bundle command. Esbuild is a declared dev dependency so CI can regenerate neith.min.js from "
-        "TypeScript sources rather than relying on a host-installed binary."
-    ),
-    ".github/workflows/grapher-index.yml": (
-        "Dev verification workflow. It gates publication on Go tests and browser Jest tests, rebuilds the "
-        "embedded neith.min.js bundle from TypeScript, then installs canonical seanbman/grapher, validates "
-        "and publishes the semantic graph, and commits both generated bundle and graph state together with "
-        "a recursion guard."
+        "Go protocol contract tests locking the v1 JSON field, automatic ProtocolVersion initialization, "
+        "browser-to-server operation allowlist, and render/listener serialization."
     ),
     "pkg.go": (
-        "Neith configuration definitions and legacy global compatibility path. Local configuration "
-        "normalization is separated from SetConfig so first-class Application construction can own "
-        "configuration without mutating process-global Neith state."
+        "Neith configuration definitions and legacy global compatibility path. Application-local config now "
+        "includes WebSocket message limits, optional explicit Origin policy, and server-session cookie name, "
+        "path, and Secure policy while retaining local normalization without mutating global state."
+    ),
+    "static/assets/neith_types.ts": (
+        "Browser TypeScript wire contract exporting PROTOCOL_VERSION=1 and requiring Dispatch.v alongside "
+        "the finite operation payloads, synchronized with Go dispatch.go."
+    ),
+    "static/assets/api.ts": (
+        "Browser finite dispatch router. It rejects missing/unsupported protocol versions before executing "
+        "redirect/render/class/DOM/custom/ping behavior and requires outbound responses to retain v1."
+    ),
+    "static/assets/socket.ts": (
+        "Browser WebSocket lifecycle owner. It derives same-route ws/wss URLs, reconnects with capped backoff, "
+        "and intentionally owns no session identifier: the browser automatically carries Neith's HttpOnly "
+        "server-issued cookie on same-origin upgrades."
+    ),
+    "static/assets/uploads.ts": (
+        "Browser multipart upload helper. Files travel over same-origin HTTP with credentials while the "
+        "HttpOnly Neith session cookie supplies session binding; no session identifier is read from JavaScript "
+        "or exposed in the upload URL."
+    ),
+    "static/assets/tests/setup.ts": (
+        "Jest integration setup that adds the current protocol version to legacy mock-server fixture frames "
+        "only inside tests, preserving strict production version validation while keeping behavior fixtures concise."
+    ),
+    "static/assets/tests/protocol.test.ts": (
+        "Focused browser wire-contract tests proving missing/unsupported protocol versions execute no operation "
+        "and send no reply, while valid v1 ping responses preserve the negotiated version."
+    ),
+    "static/assets/jest.config.js": (
+        "Jest/ts-jest browser-runtime configuration. It loads the protocol fixture setup and uses anchored "
+        "test-facing module mappings so protocol tests resolve source modules without overbroad path rewriting."
+    ),
+    "static/assets/package.json": (
+        "Browser development manifest defining serialized Jest coverage verification and reproducible esbuild "
+        "bundling of index.ts into the embedded neith.min.js artifact."
+    ),
+    ".github/workflows/grapher-index.yml": (
+        "Dev verification workflow gating publication on Go tests and browser Jest tests, rebuilding the "
+        "embedded browser bundle, running canonical Grapher validation/audit/publication, and committing generated "
+        "bundle plus shared graph state together under a recursion guard."
     ),
     "AGENTS.md": (
-        "Repository operating guidance aligned with plan 0926-1. It requires agents to read the active "
-        "plan, ADRs and API classification, use Grapher continuously, preserve Application runtime "
-        "isolation and finite-browser-protocol invariants, and keep tests/docs/generated assets synchronized."
+        "Repository agent policy for plan 0926-1: read active plans/ADRs/API classification, preserve Application "
+        "runtime and finite-protocol invariants, use Grapher continuously, and synchronize tests/docs/generated assets."
     ),
     "scripts/index_grapher_dev.py": (
-        "Development-branch Grapher entrypoint that augments the canonical repository indexer's semantic "
-        "summary map for dev-only framework planning and implementation artifacts, then delegates to the "
-        "same full ingest, enrichment, validation, audit, search, and publish pipeline."
+        "Development Grapher entrypoint augmenting the canonical full-repository index with semantic summaries "
+        "for dev-only planning, architecture, protocol, lifecycle, security, and test artifacts before validation, "
+        "audit, search verification, and publication."
     ),
     "docs/README.md": (
-        "Documentation index and mental-model entrypoint for Neith. It links the active 0926-1 framework "
-        "plan with architecture, usage, browser, development, and repository references; states the "
-        "server-driven Go mental model; and explains Grapher/source-of-truth policy."
+        "Neith documentation index and mental-model entrypoint linking the active framework plan with architecture, "
+        "usage, browser, development and repository references plus Grapher/source-of-truth policy."
     ),
 })
 

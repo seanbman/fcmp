@@ -17,9 +17,7 @@ type handlerPool struct {
 }
 
 func newHandlerPool() handlerPool {
-	return handlerPool{
-		pool: make(map[string]handler),
-	}
+	return handlerPool{pool: make(map[string]handler)}
 }
 
 func (h *handlerPool) Get(id string) (handler, bool) {
@@ -64,9 +62,7 @@ func (r *runtime) newHandler() *handler {
 	return &handler
 }
 
-func newHandler() *handler {
-	return defaultRuntime.newHandler()
-}
+func newHandler() *handler { return defaultRuntime.newHandler() }
 
 func (h handler) runtime() *runtime {
 	if h.rt == nil {
@@ -75,9 +71,7 @@ func (h handler) runtime() *runtime {
 	return h.rt
 }
 
-func (h handler) ID() string {
-	return h.id
-}
+func (h handler) ID() string { return h.id }
 
 func (h *handler) listen() {
 	go func(h *handler) {
@@ -92,8 +86,7 @@ func (h *handler) listen() {
 			case fnError:
 				go h.Error(d)
 			default:
-				d.FnError.Message = fmt.Sprintf(
-					"function '%s' found, expected event or error on 'in' channel", d.Function)
+				d.FnError.Message = fmt.Sprintf("function '%s' found, expected event or error on 'in' channel", d.Function)
 				go h.Error(d)
 			}
 		}
@@ -116,8 +109,7 @@ func (h *handler) listen() {
 			case fnError:
 				go h.Error(*fn.dispatch)
 			default:
-				fn.dispatch.FnError.Message = fmt.Sprintf(
-					"function '%s' found, expected event or error on 'in' channel", fn.dispatch.Function)
+				fn.dispatch.FnError.Message = fmt.Sprintf("function '%s' found, expected event or error on 'in' channel", fn.dispatch.Function)
 				go h.Error(*fn.dispatch)
 			}
 		}
@@ -130,16 +122,13 @@ func (h handler) Ping(d Dispatch) {
 		h.Error(d)
 		return
 	}
-	// Send ping to client
 	if !d.FnPing.Client {
 		d.FnPing.Server = true
 		h.MarshalAndPublish(d)
-		return
 	}
 }
 
 func (h handler) Render(fn FnComponent) {
-	// If there is no HTML to render, cancel dispatch
 	if len(fn.dispatch.buf) == 0 && fn.dispatch.FnRender.HTML == "" && !fn.dispatch.FnRender.Remove {
 		return
 	}
@@ -150,7 +139,6 @@ func (h handler) Render(fn FnComponent) {
 }
 
 func (h handler) Class(fn FnComponent) {
-	// If there is no class to add, cancel dispatch
 	if len(fn.dispatch.FnClass.Names) == 0 {
 		return
 	}
@@ -165,7 +153,6 @@ func (h handler) DOM(fn FnComponent) {
 }
 
 func (h handler) Redirect(fn FnComponent) {
-	// If there is no URL to redirect to, cancel dispatch
 	if fn.dispatch.FnRedirect.URL == "" {
 		return
 	}
@@ -232,16 +219,13 @@ func (h handler) Error(d Dispatch) {
 func (h handler) pingConnection(c *conn, d Dispatch) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-c.done:
 			return
 		default:
 		}
-
 		h.Ping(d)
-
 		select {
 		case <-c.done:
 			return
@@ -260,8 +244,20 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// MiddleWareFn is the legacy per-mount entry point. Each call retains its
+// historical isolated runtime. New multi-route applications should use New and
+// Application.Route.
 func MiddleWareFn(h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
-	rt := newRuntime(config)
+	return middleWareFnWithRuntime(newRuntime(config), h, hf)
+}
+
+// middleWareFnWithRuntime mounts a handler into an existing runtime. It is the
+// bridge used by Application so multiple routes can share one deliberate
+// runtime boundary without changing legacy MiddleWareFn semantics.
+func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
+	if rt == nil {
+		rt = newRuntime(config)
+	}
 	handler := rt.newHandler()
 	handler.listen()
 
@@ -274,7 +270,7 @@ func MiddleWareFn(h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
 		if clientID == "" {
 			writer := Writer{ResponseWriter: w}
 			h(&writer, r)
-			w.Write(writer.buf)
+			_, _ = w.Write(writer.buf)
 			return
 		}
 		newConnection, err := rt.newConn(w, r, handler.id, clientID)
@@ -282,20 +278,16 @@ func MiddleWareFn(h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
 			rt.Config().Logger.Error(ErrConnectionFailed)
 			rt.Config().Logger.Error(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(ErrConnectionFailed))
+			_, _ = w.Write([]byte(ErrConnectionFailed))
 			return
 		}
 		newConnection.HandlerID = handler.id
 
 		ctx := context.WithValue(r.Context(), dispatchKey, dispatchDetails{
-			Runtime:   rt,
-			ClientID:  clientID,
-			Conn:      newConnection,
-			HandlerID: handler.id,
+			Runtime: rt, ClientID: clientID, Conn: newConnection, HandlerID: handler.id,
 		})
 		ctx = context.WithValue(ctx, RequestKey, r)
 
-		// Send initial fn to client
 		fn := hf(ctx)
 		fn.dispatch.conn = newConnection
 		fn.dispatch.rt = rt
@@ -312,7 +304,6 @@ func MiddleWareFn(h http.HandlerFunc, hf HandleFn) http.HandlerFunc {
 		pinger.HandlerID = handler.id
 
 		go handler.pingConnection(newConnection, *pinger)
-
 		newConnection.listen()
 	}
 }

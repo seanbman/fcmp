@@ -4,9 +4,9 @@
     "model": "BAAI/bge-small-en-v1.5",
     "provider": "fastembed"
   },
-  "graph_hash": "d418e77f4ba0db4c52e3421c42b4cf82f1ba53657a76e49515805f206af7d782",
-  "publication_id": "d418e77f4ba0db4c",
-  "published_at": "2026-09-11T01:29:26+00:00",
+  "graph_hash": "c324b6bc1232cb436b35a9b77858e9f61a3b3f3f94bf003745e9a9401acf34cd",
+  "publication_id": "c324b6bc1232cb43",
+  "published_at": "2026-09-11T01:46:40+00:00",
   "schema_version": 2,
   "version": 1
 }

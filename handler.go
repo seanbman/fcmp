@@ -75,42 +75,52 @@ func (h handler) ID() string { return h.id }
 
 func (h *handler) listen() {
 	go func(h *handler) {
-		for d := range h.in {
-			switch d.Function {
-			case ping:
-				go h.Ping(d)
-			case event:
-				go h.Event(d)
-			case custom:
-				go h.CustomIn(d)
-			case fnError:
-				go h.Error(d)
-			default:
-				d.FnError.Message = fmt.Sprintf("function '%s' found, expected event or error on 'in' channel", d.Function)
-				go h.Error(d)
+		for {
+			select {
+			case <-h.runtime().Done():
+				return
+			case d := <-h.in:
+				switch d.Function {
+				case ping:
+					go h.Ping(d)
+				case event:
+					go h.Event(d)
+				case custom:
+					go h.CustomIn(d)
+				case fnError:
+					go h.Error(d)
+				default:
+					d.FnError.Message = fmt.Sprintf("function '%s' found, expected event or error on 'in' channel", d.Function)
+					go h.Error(d)
+				}
 			}
 		}
 	}(h)
 	go func(h *handler) {
-		for fn := range h.out {
-			switch fn.dispatch.Function {
-			case ping:
-				go h.Ping(*fn.dispatch)
-			case render:
-				go h.Render(fn)
-			case class:
-				go h.Class(fn)
-			case dom:
-				go h.DOM(fn)
-			case redirect:
-				go h.Redirect(fn)
-			case custom:
-				go h.CustomOut(fn)
-			case fnError:
-				go h.Error(*fn.dispatch)
-			default:
-				fn.dispatch.FnError.Message = fmt.Sprintf("function '%s' found, expected event or error on 'in' channel", fn.dispatch.Function)
-				go h.Error(*fn.dispatch)
+		for {
+			select {
+			case <-h.runtime().Done():
+				return
+			case fn := <-h.out:
+				switch fn.dispatch.Function {
+				case ping:
+					go h.Ping(*fn.dispatch)
+				case render:
+					go h.Render(fn)
+				case class:
+					go h.Class(fn)
+				case dom:
+					go h.DOM(fn)
+				case redirect:
+					go h.Redirect(fn)
+				case custom:
+					go h.CustomOut(fn)
+				case fnError:
+					go h.Error(*fn.dispatch)
+				default:
+					fn.dispatch.FnError.Message = fmt.Sprintf("function '%s' found, expected event or error on 'in' channel", fn.dispatch.Function)
+					go h.Error(*fn.dispatch)
+				}
 			}
 		}
 	}(h)
@@ -206,7 +216,11 @@ func (h handler) Event(d Dispatch) {
 	response.dispatch.conn = d.conn
 	response.dispatch.rt = h.runtime()
 	response.dispatch.HandlerID = d.HandlerID
-	h.out <- response
+	select {
+	case <-h.runtime().Done():
+		return
+	case h.out <- response:
+	}
 }
 
 func (h handler) Error(d Dispatch) {
@@ -223,11 +237,15 @@ func (h handler) pingConnection(c *conn, d Dispatch) {
 		select {
 		case <-c.done:
 			return
+		case <-h.runtime().Done():
+			return
 		default:
 		}
 		h.Ping(d)
 		select {
 		case <-c.done:
+			return
+		case <-h.runtime().Done():
 			return
 		case <-ticker.C:
 		}
@@ -262,6 +280,11 @@ func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.
 	handler.listen()
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		if rt.IsClosed() {
+			http.Error(w, ErrApplicationClosed.Error(), http.StatusServiceUnavailable)
+			return
+		}
+
 		clientID := r.URL.Query().Get("neith_id")
 		if r.URL.Query().Get("neith_upload") == "1" {
 			handler.Upload(w, r)
@@ -275,6 +298,10 @@ func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.
 		}
 		newConnection, err := rt.newConn(w, r, handler.id, clientID)
 		if err != nil {
+			if rt.IsClosed() {
+				http.Error(w, ErrApplicationClosed.Error(), http.StatusServiceUnavailable)
+				return
+			}
 			rt.Config().Logger.Error(ErrConnectionFailed)
 			rt.Config().Logger.Error(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -293,7 +320,12 @@ func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.
 		fn.dispatch.rt = rt
 		fn.dispatch.ConnID = clientID
 		fn.dispatch.HandlerID = handler.id
-		handler.out <- fn
+		select {
+		case <-rt.Done():
+			_ = newConnection.close()
+			return
+		case handler.out <- fn:
+		}
 
 		pinger := newDispatch(clientID)
 		pinger.rt = rt

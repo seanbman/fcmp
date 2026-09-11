@@ -44,12 +44,14 @@ func defaultConfig() *Config {
 		UploadMaxBytes:           64 << 20,
 		UploadMaxMemory:          32 << 20,
 		WebSocketMaxMessageBytes: 1 << 20,
+		SessionCookieName:        "neith_session",
+		SessionCookiePath:        "/",
 	}
 }
 
 type Config struct {
 	Silent          bool          // If true, no logs will be printed
-	CacheTimeOut    time.Duration // Default cache timeout
+	CacheTimeOut    time.Duration // Default cache/session retention timeout
 	LogLevel        LogLevel
 	Logger          *log.Logger
 	UploadDir       string // Directory for multipart event uploads; defaults to os.TempDir()/neith-uploads
@@ -63,6 +65,16 @@ type Config struct {
 	// CheckOrigin optionally overrides Gorilla WebSocket's same-origin default.
 	// Nil is the secure default and leaves Gorilla's host/origin validation active.
 	CheckOrigin func(*http.Request) bool
+
+	// SessionCookieName and SessionCookiePath configure Neith's server-issued
+	// opaque session cookie. The cookie is always HttpOnly and SameSite=Lax.
+	SessionCookieName string
+	SessionCookiePath string
+
+	// SessionCookieSecure forces the Secure flag, which is useful behind a trusted
+	// TLS-terminating reverse proxy. Direct HTTPS requests are marked Secure
+	// automatically even when this field is false.
+	SessionCookieSecure bool
 }
 
 // SetConfig updates the legacy package-global configuration. New applications
@@ -92,6 +104,12 @@ func (c *Config) setLocal() {
 	}
 	if c.WebSocketMaxMessageBytes <= 0 {
 		c.WebSocketMaxMessageBytes = 1 << 20
+	}
+	if c.SessionCookieName == "" {
+		c.SessionCookieName = "neith_session"
+	}
+	if c.SessionCookiePath == "" {
+		c.SessionCookiePath = "/"
 	}
 
 	if c.Silent || c.LogLevel == None {

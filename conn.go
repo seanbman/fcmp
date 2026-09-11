@@ -31,15 +31,18 @@ func (r *runtime) newConn(w http.ResponseWriter, req *http.Request, handlerID st
 		return nil, errors.New("runtime is closed")
 	}
 
-	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
+	// A nil CheckOrigin deliberately uses Gorilla's safe same-origin default.
+	// Applications may install a stricter or explicitly cross-origin policy via
+	// Application configuration; Neith no longer accepts every origin by default.
+	upgrader := websocket.Upgrader{}
+	if r.Config().CheckOrigin != nil {
+		upgrader.CheckOrigin = r.Config().CheckOrigin
 	}
 	ws, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		return nil, errors.New("failed to upgrade connection")
 	}
+	ws.SetReadLimit(r.Config().WebSocketMaxMessageBytes)
 	if !r.trackConnection() {
 		_ = ws.Close()
 		return nil, errors.New("runtime is closed")

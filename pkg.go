@@ -3,6 +3,7 @@ package neith
 
 import (
 	"math"
+	"net/http"
 	"os"
 	"time"
 
@@ -36,12 +37,13 @@ func init() {
 
 func defaultConfig() *Config {
 	return &Config{
-		CacheTimeOut:    time.Minute * 30,
-		LogLevel:        Error,
-		Logger:          log.NewWithOptions(os.Stderr, logOpts),
-		UploadDir:       "",
-		UploadMaxBytes:  64 << 20,
-		UploadMaxMemory: 32 << 20,
+		CacheTimeOut:             time.Minute * 30,
+		LogLevel:                 Error,
+		Logger:                   log.NewWithOptions(os.Stderr, logOpts),
+		UploadDir:                "",
+		UploadMaxBytes:           64 << 20,
+		UploadMaxMemory:          32 << 20,
+		WebSocketMaxMessageBytes: 1 << 20,
 	}
 }
 
@@ -53,6 +55,14 @@ type Config struct {
 	UploadDir       string // Directory for multipart event uploads; defaults to os.TempDir()/neith-uploads
 	UploadMaxBytes  int64  // Maximum request size for one upload request
 	UploadMaxMemory int64  // Maximum multipart memory before files spill to disk
+
+	// WebSocketMaxMessageBytes limits one inbound WebSocket message. Values <= 0
+	// are normalized to the secure default.
+	WebSocketMaxMessageBytes int64
+
+	// CheckOrigin optionally overrides Gorilla WebSocket's same-origin default.
+	// Nil is the secure default and leaves Gorilla's host/origin validation active.
+	CheckOrigin func(*http.Request) bool
 }
 
 // SetConfig updates the legacy package-global configuration. New applications
@@ -80,6 +90,9 @@ func (c *Config) setLocal() {
 	if c.Logger == nil {
 		c.Logger = log.NewWithOptions(os.Stderr, logOpts)
 	}
+	if c.WebSocketMaxMessageBytes <= 0 {
+		c.WebSocketMaxMessageBytes = 1 << 20
+	}
 
 	if c.Silent || c.LogLevel == None {
 		c.Logger.SetLevel(log.Level(None))
@@ -89,6 +102,7 @@ func (c *Config) setLocal() {
 		"neith config set",
 		"cache_timeout", c.CacheTimeOut,
 		"log_level", c.LogLevel,
+		"websocket_max_message_bytes", c.WebSocketMaxMessageBytes,
 	)
 	c.Logger.SetLevel(log.Level(c.LogLevel))
 }

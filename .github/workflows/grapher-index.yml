@@ -45,6 +45,9 @@ jobs:
         working-directory: static/assets
         run: npm run build
 
+      - name: Remove transient browser test output
+        run: rm -rf static/assets/coverage
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

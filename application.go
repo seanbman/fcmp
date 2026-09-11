@@ -53,6 +53,15 @@ func WithWebSocketOriginPolicy(policy func(*http.Request) bool) ApplicationOptio
 	}
 }
 
+// WithInteractiveAuthorization installs an application-level authorization
+// guard for WebSocket upgrades and upload requests. It complements ordinary
+// net/http authentication middleware; returning false rejects the request.
+func WithInteractiveAuthorization(policy func(*http.Request) bool) ApplicationOption {
+	return func(c *Config) {
+		c.AuthorizeInteractive = policy
+	}
+}
+
 // New creates an isolated Neith Application.
 func New(opts ...ApplicationOption) *Application {
 	cfg := *defaultConfig()

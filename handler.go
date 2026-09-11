@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
 type handlerPool struct {
@@ -285,15 +286,33 @@ func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.
 			return
 		}
 
-		clientID := r.URL.Query().Get("neith_id")
 		if r.URL.Query().Get("neith_upload") == "1" {
+			clientID, err := rt.sessionID(r)
+			if err != nil {
+				http.Error(w, "neith: session required", http.StatusUnauthorized)
+				return
+			}
+			r = r.WithContext(context.WithValue(r.Context(), dispatchKey, dispatchDetails{
+				Runtime: rt, ClientID: clientID, HandlerID: handler.id,
+			}))
 			handler.Upload(w, r)
 			return
 		}
-		if clientID == "" {
+
+		if !websocket.IsWebSocketUpgrade(r) {
+			if _, err := rt.ensureSessionID(w, r); err != nil {
+				http.Error(w, "neith: failed to establish session", http.StatusInternalServerError)
+				return
+			}
 			writer := Writer{ResponseWriter: w}
 			h(&writer, r)
 			_, _ = w.Write(writer.buf)
+			return
+		}
+
+		clientID, err := rt.sessionID(r)
+		if err != nil {
+			http.Error(w, "neith: session required", http.StatusUnauthorized)
 			return
 		}
 		newConnection, err := rt.newConn(w, r, handler.id, clientID)
@@ -304,8 +323,6 @@ func middleWareFnWithRuntime(rt *runtime, h http.HandlerFunc, hf HandleFn) http.
 			}
 			rt.Config().Logger.Error(ErrConnectionFailed)
 			rt.Config().Logger.Error(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(ErrConnectionFailed))
 			return
 		}
 		newConnection.HandlerID = handler.id

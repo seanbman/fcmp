@@ -48,6 +48,19 @@ func (r *clientSessionRegistry) ActiveConn(clientID string) (*conn, bool) {
 	return session.activeConn, true
 }
 
+func (r *clientSessionRegistry) ActiveConnections() []*conn {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	connections := make([]*conn, 0, len(r.sessions))
+	for _, session := range r.sessions {
+		if session != nil && session.activeConn != nil {
+			connections = append(connections, session.activeConn)
+		}
+	}
+	return connections
+}
+
 func (r *clientSessionRegistry) Detach(clientID string, conn *conn) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

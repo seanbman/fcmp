@@ -28,29 +28,53 @@ base.SUMMARIES.update({
         "remaining renderer-neutral and compatible with net/http."
     ),
     "docs/adr/0002-application-runtime-ownership.md": (
-        "Accepted architecture decision making Application the canonical owner of configuration, "
-        "runtime, routes, lifecycle, sessions and future policy; routes within an Application share "
-        "one deliberate runtime while separate Applications remain isolated."
+        "Accepted and Phase-1-implemented architecture decision making Application the canonical "
+        "owner of configuration, runtime, routes, lifecycle, sessions and future policy. Routes "
+        "within an Application share one deliberate runtime; separate Applications remain isolated; "
+        "shutdown cancels runtime work, closes tracked sockets, rejects new requests, and is idempotent."
     ),
     "docs/adr/0003-protocol-security-boundary.md": (
         "Accepted security/architecture decision defining the browser as a finite versioned protocol "
         "interpreter and explicitly rejecting arbitrary server-supplied JavaScript execution."
     ),
     "application.go": (
-        "Introduces the first-class Application API for framework plan 0926-1. Application owns an "
-        "isolated runtime and standard-library ServeMux, implements http.Handler, registers multiple "
-        "interactive routes against the shared runtime, serves embedded assets, and accepts local "
-        "configuration options without requiring package-global configuration."
+        "First-class Application API for framework plan 0926-1. Application owns an isolated runtime "
+        "and standard-library ServeMux, implements http.Handler, registers multiple interactive routes "
+        "against one shared runtime, serves embedded assets, accepts local configuration without "
+        "package globals, and exposes Done, Shutdown, and Close lifecycle methods."
     ),
     "application_test.go": (
         "Phase 1 contract tests for Application: registered HTTP route/page serving, multiple routes "
-        "sharing one application runtime, isolation between separate applications, and proof that "
-        "application-local configuration does not mutate the legacy package-global configuration."
+        "sharing one application runtime, isolation between separate applications, application-local "
+        "configuration, idempotent shutdown, post-shutdown request rejection, and closure/detachment "
+        "of tracked active connections."
+    ),
+    "runtime.go": (
+        "Internal Application runtime ownership boundary. In addition to handlers, sessions, listeners, "
+        "state stores and configuration, runtime now owns a cancellation context, closed state, tracked "
+        "connection wait group, and idempotent graceful shutdown that closes active session sockets."
     ),
     "handler.go": (
         "Runtime handler pool and bidirectional dispatch pipeline. Legacy MiddleWareFn preserves a "
-        "fresh isolated runtime per mount, while middleWareFnWithRuntime is the internal bridge that "
-        "lets first-class Application routes share one deliberate runtime boundary."
+        "fresh isolated runtime per mount; middleWareFnWithRuntime lets Application routes share one "
+        "runtime. Handler input/output loops, ping loops, initial dispatch, and event responses now "
+        "observe runtime cancellation so application shutdown terminates runtime-owned pipelines."
+    ),
+    "conn.go": (
+        "WebSocket transport tied to Application runtime lifetime. Connections are registered with the "
+        "runtime after upgrade, close exactly once, decrement runtime tracking, stop reads/writes and "
+        "publishes on runtime cancellation, skip delayed cache cleanup during shutdown, and continue "
+        "to enforce one active connection per client session."
+    ),
+    "session.go": (
+        "Client-session registry preserving one active socket per browser client while allowing session "
+        "state to outlive a connection. It now exposes an internal snapshot of active connections so "
+        "Application shutdown can close every transport owned by the runtime safely."
+    ),
+    "errors.go": (
+        "Stable package error values for application lifecycle, dispatch/event context, connection "
+        "failures, and cache/store failures. ErrApplicationClosed identifies work rejected after an "
+        "Application runtime has begun shutdown."
     ),
     "pkg.go": (
         "Neith configuration definitions and legacy global compatibility path. Local configuration "
@@ -69,9 +93,9 @@ base.SUMMARIES.update({
         "delegates to the same full ingest, enrichment, validation, audit, search, and publish pipeline."
     ),
     ".github/workflows/grapher-index.yml": (
-        "GitHub Actions workflow that keeps the dev branch semantically indexed with the canonical "
-        "seanbman/grapher CLI, executes the dev Grapher entrypoint, validates and publishes the "
-        "shared graph, and commits generated .grapher/shared state back with a recursion guard."
+        "GitHub Actions workflow for dev verification. It runs the Go test suite before installing "
+        "canonical seanbman/grapher, builds and audits the semantic repository index, publishes shared "
+        "graph state, and commits generated .grapher/shared output with a recursion guard."
     ),
     "docs/README.md": (
         "Documentation index and mental-model entrypoint for Neith. It links the active 0926-1 "

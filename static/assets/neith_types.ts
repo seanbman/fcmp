@@ -1,20 +1,12 @@
 /** Current Neith server/browser wire protocol version. */
 const PROTOCOL_VERSION = 1;
 
-/**
- * Lookup table for browser-side dispatch handlers.
- *
- * The key is a protocol function name, and the value either performs a DOM
- * effect or returns a response dispatch that should be sent back to Go.
- */
 type DispatchFunctions = {
     [key: string]: (data: Dispatch) => Dispatch | void;
 };
 
-/** Protocol function names shared by Go and the browser client. */
+/** Protocol operation names shared by Go and the browser client. */
 enum Fun {
-    AUTH = "auth",
-    KEY = "key",
     PING = "ping",
     RENDER = "render",
     CLASS = "class",
@@ -24,8 +16,6 @@ enum Fun {
     EVENT = "event",
     ERROR = "error",
 }
-
-type FnAuth = { key: string; token: string; };
 
 type FnEventListener = {
     id: string;
@@ -66,7 +56,6 @@ type Upload = {
 };
 
 type FnPing = { server: boolean; client: boolean; };
-
 type FnRender = {
     target_id: string;
     tag: string;
@@ -78,16 +67,26 @@ type FnRender = {
     html: string;
     event_listeners: FnEventListener[];
 };
-
 type FnClass = { target_id: string; remove: boolean; names: string[]; };
-
 type FnDOM = { target_id: string; operation: string; name: string; value: string; };
-
 type FnCustom = { function: string; data: Object; result: Object; };
 type FnRedirect = { url: string; };
 type FnError = { message: string; };
 
-/** Full websocket message exchanged between Go and the browser. */
+/** Stable v1 websocket envelope. Exactly one operation payload travels per frame. */
+type ProtocolMessage = {
+    v: number;
+    type: Fun;
+    id?: string;
+    key?: string;
+    conn_id?: string;
+    handler_id?: string;
+    action?: string;
+    label?: string;
+    payload: unknown;
+};
+
+/** Internal browser representation retained while Phase 3 simplifies execution. */
 type Dispatch = {
     v: number;
     function: Fun;
@@ -111,7 +110,6 @@ export {
     PROTOCOL_VERSION,
     DispatchFunctions,
     Fun,
-    FnAuth,
     FnPing,
     FnRender,
     FnClass,
@@ -122,5 +120,6 @@ export {
     FnEventListener,
     EventTargetData,
     Upload,
+    ProtocolMessage,
     Dispatch,
 };

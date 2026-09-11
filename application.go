@@ -1,6 +1,7 @@
 package neith
 
 import (
+	"context"
 	"net/http"
 	"sync"
 
@@ -61,6 +62,9 @@ func (a *Application) Route(pattern string, hf HandleFn, opts ...PageOption) {
 	if hf == nil {
 		panic("neith: nil route handler")
 	}
+	if a.rt == nil || a.rt.IsClosed() {
+		panic("neith: cannot register route on closed Application")
+	}
 
 	page := NewPage(opts...)
 	mounted := middleWareFnWithRuntime(a.rt, page.ServeHTTP, hf)
@@ -72,12 +76,45 @@ func (a *Application) Route(pattern string, hf HandleFn, opts ...PageOption) {
 
 // ServeHTTP serves embedded Neith assets and registered application routes.
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if a == nil || a.mux == nil {
+	if a == nil || a.mux == nil || a.rt == nil {
 		http.Error(w, "neith: application is not initialized", http.StatusInternalServerError)
+		return
+	}
+	if a.rt.IsClosed() {
+		http.Error(w, ErrApplicationClosed.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	if serveEmbeddedAsset(w, r) {
 		return
 	}
 	a.mux.ServeHTTP(w, r)
+}
+
+// Done is closed when application shutdown begins.
+func (a *Application) Done() <-chan struct{} {
+	if a == nil || a.rt == nil {
+		closed := make(chan struct{})
+		close(closed)
+		return closed
+	}
+	return a.rt.Done()
+}
+
+// Shutdown stops new application work, cancels the runtime context, closes
+// active WebSocket connections, and waits for tracked connections to finish or
+// for ctx to expire. Shutdown is safe to call more than once.
+func (a *Application) Shutdown(ctx context.Context) error {
+	if a == nil || a.rt == nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return a.rt.Shutdown(ctx)
+}
+
+// Close shuts the application down without a deadline. It allows Application
+// to participate in ordinary io.Closer-style lifecycle management.
+func (a *Application) Close() error {
+	return a.Shutdown(context.Background())
 }

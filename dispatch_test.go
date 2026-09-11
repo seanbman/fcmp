@@ -27,8 +27,9 @@ func TestDispatchJSONShape(t *testing.T) {
 	body := string(b)
 	for _, want := range []string{
 		`"v":1`,
-		`"function":"render"`,
+		`"type":"render"`,
 		`"conn_id":"conn-1"`,
+		`"payload":{`,
 		`"target_id":"content"`,
 		`"html":"\u003cp\u003eHello\u003c/p\u003e"`,
 	} {
@@ -36,8 +37,34 @@ func TestDispatchJSONShape(t *testing.T) {
 			t.Fatalf("expected dispatch JSON to contain %s, got %s", want, body)
 		}
 	}
-	if strings.Contains(body, `"buf"`) || strings.Contains(body, `"conn"`) {
-		t.Fatalf("dispatch JSON leaked internal fields: %s", body)
+	for _, forbidden := range []string{`"function"`, `"buf"`, `"conn"`} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("dispatch JSON leaked legacy/internal field %s: %s", forbidden, body)
+		}
+	}
+}
+
+func TestDispatchJSONRejectsUnknownEnvelopeField(t *testing.T) {
+	var dispatch Dispatch
+	err := json.Unmarshal([]byte(`{"v":1,"type":"ping","payload":{"server":true,"client":false},"surprise":true}`), &dispatch)
+	if err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("expected unknown envelope field error, got %v", err)
+	}
+}
+
+func TestDispatchJSONRejectsUnknownPayloadField(t *testing.T) {
+	var dispatch Dispatch
+	err := json.Unmarshal([]byte(`{"v":1,"type":"ping","payload":{"server":true,"client":false,"surprise":true}}`), &dispatch)
+	if err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("expected unknown payload field error, got %v", err)
+	}
+}
+
+func TestDispatchJSONRejectsUnsupportedVersion(t *testing.T) {
+	var dispatch Dispatch
+	err := json.Unmarshal([]byte(`{"v":2,"type":"ping","payload":{"server":true,"client":false}}`), &dispatch)
+	if err == nil || !strings.Contains(err.Error(), "unsupported protocol version") {
+		t.Fatalf("expected unsupported version error, got %v", err)
 	}
 }
 

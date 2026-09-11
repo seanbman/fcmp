@@ -17,6 +17,7 @@ type (
 		session   *clientSession
 		closeOnce sync.Once
 		done      chan struct{}
+		tracked   bool
 		ClientID  string
 		HandlerID string
 		LastPing  time.Time
@@ -26,20 +27,29 @@ type (
 )
 
 func (r *runtime) newConn(w http.ResponseWriter, req *http.Request, handlerID string, clientID string) (*conn, error) {
+	if r == nil || r.IsClosed() {
+		return nil, errors.New("runtime is closed")
+	}
+
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
 	}
-	websocket, err := upgrader.Upgrade(w, req, nil)
+	ws, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		return nil, errors.New("failed to upgrade connection")
+	}
+	if !r.trackConnection() {
+		_ = ws.Close()
+		return nil, errors.New("runtime is closed")
 	}
 
 	c := &conn{
 		rt:        r,
-		websocket: websocket,
+		websocket: ws,
 		done:      make(chan struct{}),
+		tracked:   true,
 		ClientID:  clientID,
 		HandlerID: handlerID,
 		Messages:  make(chan []byte, 16),
@@ -66,13 +76,18 @@ func (c *conn) close() error {
 		if c.ClientID != "" {
 			rt.eventListeners.Delete(c)
 			rt.sessions.Detach(c.ClientID, c)
-			go c.cleanupCacheAfterTimeout()
+			if !rt.IsClosed() {
+				go c.cleanupCacheAfterTimeout()
+			}
 		}
 
 		if c.websocket != nil {
 			if err := c.websocket.Close(); err != nil {
 				rt.Config().Logger.Debug("error closing websocket", "error", err)
 			}
+		}
+		if c.tracked {
+			rt.connectionClosed()
 		}
 	})
 	return nil
@@ -87,7 +102,13 @@ func (c *conn) runtime() *runtime {
 
 func (c *conn) cleanupCacheAfterTimeout() {
 	rt := c.runtime()
-	time.Sleep(rt.Config().CacheTimeOut)
+	timer := time.NewTimer(rt.Config().CacheTimeOut)
+	defer timer.Stop()
+	select {
+	case <-rt.Done():
+		return
+	case <-timer.C:
+	}
 	if rt.sessions.DeleteIfInactive(c.ClientID) {
 		rt.stores.delete(c.ClientID)
 	}
@@ -104,7 +125,7 @@ func (c *conn) readLoop() {
 				websocket.CloseGoingAway,
 				websocket.CloseAbnormalClosure,
 				websocket.CloseNormalClosure,
-			) {
+			) && !c.runtime().IsClosed() {
 				c.runtime().Config().Logger.Error("error reading websocket message", "error", err)
 			}
 			return
@@ -127,6 +148,8 @@ func (c *conn) readLoop() {
 		select {
 		case <-c.done:
 			return
+		case <-c.runtime().Done():
+			return
 		case handler.in <- dispatch:
 		}
 	}
@@ -136,6 +159,8 @@ func (c *conn) writeLoop() {
 	for {
 		select {
 		case <-c.done:
+			return
+		case <-c.runtime().Done():
 			return
 		case msg, ok := <-c.Messages:
 			if !ok {
@@ -147,7 +172,9 @@ func (c *conn) writeLoop() {
 				return
 			}
 			if err := c.websocket.WriteMessage(1, msg); err != nil {
-				c.runtime().Config().Logger.Error("error writing message", "error", err)
+				if !c.runtime().IsClosed() {
+					c.runtime().Config().Logger.Error("error writing message", "error", err)
+				}
 				c.close()
 				return
 			}
@@ -186,6 +213,8 @@ func (c *conn) Publish(msg []byte) {
 	select {
 	case <-c.done:
 		return
+	case <-c.runtime().Done():
+		return
 	case c.Messages <- msg:
 	}
 }
@@ -202,6 +231,8 @@ func (c *conn) Write(p []byte) (n int, err error) {
 	select {
 	case <-c.done:
 		return 0, errors.New("connection closed")
+	case <-c.runtime().Done():
+		return 0, errors.New("runtime closed")
 	case c.Messages <- p:
 		return len(p), nil
 	}

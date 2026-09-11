@@ -2,6 +2,8 @@
 
 This directory is the maintainers' and users' guide to the Neith repository. The root `README.md` remains the public package overview and API-oriented introduction; the documents here separate architecture, practical usage, browser behavior, development workflow, repository structure, and framework planning so each concern can evolve without turning one file into a monolith.
 
+**Active framework roadmap:** [`DEVELOPMENT_PLAN_0926-1.md`](DEVELOPMENT_PLAN_0926-1.md).
+
 ## Documentation map
 
 | Document | Purpose |

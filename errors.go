@@ -1,5 +1,15 @@
 package neith
 
+type ApplicationError string
+
+func (e ApplicationError) Error() string {
+	return string(e)
+}
+
+const (
+	ErrApplicationClosed ApplicationError = "application is closed"
+)
+
 type DispatchError string
 
 func (e DispatchError) Error() string {

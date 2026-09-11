@@ -1,6 +1,7 @@
 package neith
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -86,7 +87,14 @@ func TestEnsureSessionIDMarksDirectHTTPSAndConfiguredProxySecure(t *testing.T) {
 
 func TestApplicationPageIssuesSessionCookie(t *testing.T) {
 	app := New()
-	app.Route("/", func(_ interfaceContext) FnComponent { return FnComponent{} })
-}
+	app.Route("/", func(context.Context) FnComponent { return FnComponent{} })
 
-type interfaceContext = interface{ Done() <-chan struct{} }
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
+	res := httptest.NewRecorder()
+	app.ServeHTTP(res, req)
+
+	cookies := res.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "neith_session" {
+		t.Fatalf("expected Neith page response to establish session cookie, got %#v", cookies)
+	}
+}

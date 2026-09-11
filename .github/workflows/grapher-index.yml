@@ -28,6 +28,23 @@ jobs:
       - name: Verify Go package
         run: go test ./...
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install browser dependencies
+        working-directory: static/assets
+        run: npm install --no-package-lock
+
+      - name: Verify browser runtime
+        working-directory: static/assets
+        run: npm test
+
+      - name: Build browser bundle
+        working-directory: static/assets
+        run: npm run build
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -39,15 +56,15 @@ jobs:
       - name: Build and verify semantic repository index
         run: python scripts/index_grapher_dev.py
 
-      - name: Commit published Grapher state
+      - name: Commit generated browser and Grapher state
         shell: bash
         run: |
-          if [ -z "$(git status --porcelain -- .grapher/shared)" ]; then
-            echo "Published Grapher state is already current."
+          if [ -z "$(git status --porcelain -- static/assets/neith.min.js .grapher/shared)" ]; then
+            echo "Generated browser bundle and Grapher state are already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .grapher/shared
-          git commit -m "grapher: publish repository index [grapher-generated]"
+          git add static/assets/neith.min.js .grapher/shared
+          git commit -m "build: publish verified browser and Grapher state [grapher-generated]"
           git push

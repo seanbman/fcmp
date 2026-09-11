@@ -63,6 +63,35 @@ func TestApplicationConfigDoesNotMutateLegacyGlobal(t *testing.T) {
 	}
 }
 
+func TestInteractiveAuthorizationRejectsUploadBeforeSessionHandling(t *testing.T) {
+	app := New(WithInteractiveAuthorization(func(*http.Request) bool { return false }))
+	app.Route("/", func(context.Context) FnComponent { return FnComponent{} })
+
+	req := httptest.NewRequest(http.MethodPost, "/?neith_upload=1", nil)
+	res := httptest.NewRecorder()
+	app.ServeHTTP(res, req)
+
+	if res.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden upload, got %d", res.Code)
+	}
+}
+
+func TestInteractiveAuthorizationRejectsWebSocketBeforeUpgrade(t *testing.T) {
+	app := New(WithInteractiveAuthorization(func(*http.Request) bool { return false }))
+	app.Route("/", func(context.Context) FnComponent { return FnComponent{} })
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Sec-WebSocket-Version", "13")
+	res := httptest.NewRecorder()
+	app.ServeHTTP(res, req)
+
+	if res.Code != http.StatusForbidden {
+		t.Fatalf("expected forbidden websocket upgrade, got %d", res.Code)
+	}
+}
+
 func TestApplicationShutdownClosesRuntimeAndRejectsRequests(t *testing.T) {
 	app := New()
 	app.Route("/", func(context.Context) FnComponent { return FnComponent{} })

@@ -3,7 +3,7 @@ name: Grapher repository index
 on:
   push:
     branches:
-      - docs/grapher-index-2026-09-10
+      - dev
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
         run: python -m pip install 'git+https://github.com/seanbman/grapher.git@main'
 
       - name: Build and verify semantic repository index
-        run: python scripts/index_grapher.py
+        run: python scripts/index_grapher_dev.py
 
       - name: Commit published Grapher state
         shell: bash

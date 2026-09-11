@@ -4,12 +4,12 @@ module.exports = {
   testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   transform: {
-    "^.+.ts?$": ["ts-jest",{}],
+    "^.+.ts?$": ["ts-jest", {}],
   },
   moduleNameMapper: {
-    "../socket": "../socket.ts",
-    "./api": "./api.ts",
-    "../neith_types": "../neith_types.ts",
-    "./neith_types": "./neith_types.ts",
-  }
+    "^\\.\\./socket$": "<rootDir>/socket.ts",
+    "^\\.\\./api$": "<rootDir>/api.ts",
+    "^\\.\\./hooks$": "<rootDir>/hooks.ts",
+    "^\\.\\./neith_types$": "<rootDir>/neith_types.ts",
+  },
 };

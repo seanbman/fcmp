@@ -3,6 +3,8 @@ package neith
 import (
 	"net/http"
 	"sync"
+
+	"github.com/charmbracelet/log"
 )
 
 // Application is the canonical owner of a Neith runtime and its routes.
@@ -28,23 +30,11 @@ func WithConfig(c Config) ApplicationOption {
 }
 
 // WithLogger configures the application logger.
-func WithLogger(logger Logger) ApplicationOption {
+func WithLogger(logger *log.Logger) ApplicationOption {
 	return func(c *Config) {
-		c.Logger = logger.logger()
+		c.Logger = logger
 	}
 }
-
-// Logger is a small adapter that lets Neith accept its current logger without
-// making Application depend on package-global configuration. Use Log with a
-// charmbracelet/log logger. This adapter is temporary until the logging API is
-// finalized before 1.0.
-type Logger interface {
-	logger() loggerValue
-}
-
-// loggerValue is intentionally private; the public logging surface will be
-// finalized separately from runtime ownership.
-type loggerValue interface{}
 
 // New creates an isolated Neith Application.
 func New(opts ...ApplicationOption) *Application {
@@ -54,7 +44,7 @@ func New(opts ...ApplicationOption) *Application {
 			opt(&cfg)
 		}
 	}
-	cfg.SetLocal()
+	cfg.setLocal()
 
 	return &Application{
 		rt:  newRuntime(&cfg),
